@@ -24,6 +24,8 @@ lapply(c("tidyverse",
 ## Read in our data from last time
 ukr22 <- readRDS("data/df2022")
 ukr23 <- readRDS("data/df2023")
+tidy22 <-readRDS("data/tidy22")
+tidy23 <-readRDS("data/tidy23")
 
 ## 1. Revising last week's class: creating the corpus
 #  By the end of last week's class we had processed our text and created 
@@ -68,16 +70,16 @@ head(tidy22)
 head(tidy23)
 
 # Let's check for duplicates again:
-which(duplicated(tidy22$headline))
-which(duplicated(tidy23$headline))
+# which(duplicated(tidy22$headline))
+# which(duplicated(tidy23$headline))
 
 ?# We can use the same code to drop duplicated headlines:
-tidy22 <- tidy2022[-96,]
-tidy23 <- tidy23[-which(duplicated(tidy23$headline)),]
+#
+# tidy23 <- tidy23[-which(duplicated(tidy23$headline)),]
 
 # Let's also tidy the body_text column before we transform into a corpus
-tidy22$body_text <- str_replace(tidy22$body_text, "\u2022.+$", "")
-tidy23$body_text <- str_replace(tidy23$body_text, "\u2023.+$", "")
+## tidy22$body_text <- str_replace(tidy22$body_text, "\u2022.+$", "")
+##tidy23$body_text <- str_replace(tidy23$body_text, "\u2023.+$", "")
 
 # Creating a corpus object
 corp22 <- corpus(tidy22, 
@@ -94,6 +96,7 @@ corpSum22 <- summary(corp22,
 corpSum23 <- summary(corp23, 
                      n = nrow(docvars(corp23)) #note: the default is n=100
 )
+
 head(corpSum22[,-8])
 head(corpSum23[,-8])
 
