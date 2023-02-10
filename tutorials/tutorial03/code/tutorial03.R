@@ -51,7 +51,7 @@ tidy2022 <- ukr22 %>%
   ) %>%
   mutate(date = as_datetime(date)) # parse date
 
-tidy23 <- ukr23 %>%
+#tidy23 <- ukr23 %>%
   select(headline,
          byline,
          date = web_publication_date, # Rename date variable
@@ -182,7 +182,10 @@ colc23 <- textstat_collocations(toks23, size = 2, min_count = 10)
 # This time, let's look at the z scores to see what cut-off to use
 ?textstat_collocations
 
-toks22 <- tokens_compound(toks22, pattern = colc22["pick a z score"])
+toks22 <- tokens_compound(toks22, pattern = colc22["pick a z score"])  
+#### Error in `[.data.frame`(colc22, "pick a z score") : 选择了未定义的列
+
+
 toks23 <- tokens_compound(toks23, pattern = colc23["pick a z score"])
 
 # Remove whitespace
@@ -198,6 +201,13 @@ toks23 <- tokens_wordstem(toks23)
 # for features that should have been removed. Let's do that again
 # this time: create a dfm for both tokens objects, then go back to
 # remove the necessary stopwords.
+
+dfm22 <- dfm(toks22)
+  
+dfm23 <- dfm(toks23)
+
+topfeatures(dfm22)
+topfeatures(dfm23)
 
 
 #### 4. Statistics with the dfm 
@@ -224,7 +234,10 @@ dfm_ukr <- rbind(dfm22, dfm23)
 set.seed(2023)
 dfm_by_date <- dfm_group(dfm_ukr, fill = TRUE, groups = year(dfm_ukr$date))
 keyness <- textstat_keyness(dfm_by_date, target = "2022")
-textplot_keyness(keyness, labelsize = 3)
+textplot_keyness(keyness, labelsize = 3)  
+## that's the relative frequency, some key words is more likely to appear 
+# chi2 for, how many chis we have from 0 
+
 
 # Finally, let's see if sentiment analysis can detect a change in tone 
 # over time. To do this, we need to use a dictionary object. We only
@@ -247,6 +260,9 @@ docvars(dfm_sentiment) %>%
        x = "day of year", y = "net sentiment", 
        colour = "year")
 
+# both below 0, negative, and CIs of the two lines are overlapping, so the difference may not be significant   
+
+
 # Having performed these analyses, is there anything you would change in 
 # the initial corpus? Try changing a few things and see how it affects 
 # the results.
@@ -254,3 +270,4 @@ docvars(dfm_sentiment) %>%
 # save our data for next time
 saveRDS(dfm22, "data/dfm22")
 saveRDS(dfm23, "data/dfm23")
+
