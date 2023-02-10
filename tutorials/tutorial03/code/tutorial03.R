@@ -39,7 +39,7 @@ ukr22 <- ukr22[ukr22$type == "article" & ukr22$section_id == "world",]
 ukr23 <- ukr23[ukr23$type == "article" & ukr23$section_id == "world",]
 
 # First, we'll tidy up our initial dataframes.
-tidy22 <- ukr22 %>%
+tidy2022 <- ukr22 %>%
   select(headline,
          byline,
          date = web_publication_date, # Rename date variable
@@ -71,13 +71,13 @@ head(tidy23)
 which(duplicated(tidy22$headline))
 which(duplicated(tidy23$headline))
 
-# We can use the same code to drop duplicated headlines:
-tidy22 <- tidy22[-which(duplicated(tidy22$headline)),]
+?# We can use the same code to drop duplicated headlines:
+tidy22 <- tidy2022[-96,]
 tidy23 <- tidy23[-which(duplicated(tidy23$headline)),]
 
 # Let's also tidy the body_text column before we transform into a corpus
 tidy22$body_text <- str_replace(tidy22$body_text, "\u2022.+$", "")
-tidy23$body_text <- str_replace(tidy23$body_text, "\u2022.+$", "")
+tidy23$body_text <- str_replace(tidy23$body_text, "\u2023.+$", "")
 
 # Creating a corpus object
 corp22 <- corpus(tidy22, 
