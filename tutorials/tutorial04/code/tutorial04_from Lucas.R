@@ -21,13 +21,20 @@ lapply(c("tidyverse",
          "doParallel"), # For parallel processing
        pkgTest)
 
-
 ## 1. Acquire (?), read in and wrangle data
 dat <- readRDS("data/df2023")
 
-dat <- dat[dat$section_name %in% c("world news", "opinion"),dat, type = "article"]
+# You need to a) Subset on section_name, using World news and Opinion, and 
+#                type, using article.
 
-dat <-dat %>%
+dat <- dat[dat$section_name %in% c("World news","Opinion")
+           & dat$type == "article",]
+
+
+#             b) Select relevant columns.
+library("dplyr")
+
+dat <- dat %>%
   select(headline,
          byline,
          date = web_publication_date, # Rename date variable
@@ -37,21 +44,8 @@ dat <-dat %>%
   ) %>%
   mutate(date = as_datetime(date)) # parse date
 
-
-dat <- dat[dat$section_name %in% c("world news", "world"),dat$section_name]
-
-
-# You need to a) Subset on section_name, using World news and Opinion, and 
-#                type, using article.
-
-
-
-#             b) Select relevant columns.
-
-
-
 #             c) Remove duplicates.
-
+dat <- dat[-which(duplicated(dat$headline)),] #FIX
 
 
 # This code relabels our data, because "World news" contains whitespace...
@@ -59,10 +53,16 @@ dat$section_name <- ifelse(dat$section_name == "World news", "World", dat$sectio
 
 ## 2. QTA Preparation
 # You need to a) Remove the large round symbol.
+library("stringr")
+dat$body_text <- str_replace(dat$body_text, "\u2022.+$", "")
 
 #             b) Convert to a corpus.
+corp <- corpus(dat, 
+                 docid_field = "headline",
+                 text_field = "body_text")
 
 #             c) and d) Clean the corpus and find collocations.
+
 
 # For steps c) and d), check out the pre_processing.R script.
 source("code/pre_processing.R")
@@ -70,11 +70,20 @@ prepped_toks <- prep_toks(corp) # basic token cleaning
 collocations <- get_coll(prepped_toks) # get collocations
 
 #             e) Make tokens.
-toks <- (toks, )
+toks <- quanteda::tokens(corp, 
+                           include_docvars = TRUE,
+                           remove_numbers = TRUE,
+                           remove_punct = TRUE,
+                           remove_symbols = TRUE,
+                           remove_separators = TRUE,
+                           remove_url = TRUE) %>% #Create tokens object
+  tokens_tolower() %>% # Transform to lower case
+  tokens_remove(stopwords("english")) # Remove stopwords
 
 #             f) Clean tokens.
 
 #             g) Create the dfm.
+dfm <- dfm(corp)
 
 #             h) Trim and weight the dfm
 dfm <- dfm_trim(dfm, min_docfreq = 10) # trim DFM
@@ -95,7 +104,7 @@ vdata <- tmpdata[1:split, ] # validation set
 ldata <- tmpdata[(split + 1):nrow(tmpdata), ] # labelled dataset minus validation set
 
 #             b) Create an 80/20 test/train split
-train_row_nums <- createDataPartition(ldata$section_labels, 
+train_row_nums <- createDataPartition(ldata$section_labels, #target
                                       p=0.8, 
                                       list=FALSE) # set human_labels as the Y variable in caret
 Train <- ldata[train_row_nums, ] # training set
@@ -125,17 +134,18 @@ tuneGrid
 
 #             c) Set up parallel processing
 cl <- makePSOCKcluster(6) # create number of copies of R to run in parallel and communicate over sockets
+
 # Note that the number of clusters depends on how many cores your machine has.  
 registerDoParallel(cl) # register parallel backed with foreach package
 
-#             d) Train the model
-nb_train <- train(section_labels ~ ., 
+#             d) Train the model (similar to regression)
+nb_train <- train(section_labels ~ ., #using all features to predict section_labels
                   data = Train,  
                   method = "naive_bayes", 
-                  metric = "F1",
-                  trControl = train_control,
-                  tuneGrid = tuneGrid,
-                  allowParallel= TRUE
+                  metric = "F1", #F1 balances different accuracies, etc.
+                  trControl = train_control, #cross-validation
+                  tuneGrid = tuneGrid, #parameters
+                  allowParallel= TRUE #to speed up
 )
 
 #             e) Save the model!
@@ -162,7 +172,7 @@ nb_final <- train(section_labels ~ .,
                   tuneGrid = data.frame(nb_train$bestTune))
 
 #             j) Save the model!
-saveRDS(nb_final, "data/nb_final")  #### this is pretty important!!!! Save your time!!!
+saveRDS(nb_final, "data/nb_final")
 
 #             k) If your machine is running slow... read in the model 
 #nb_final <- readRDS("data/nb_final")
@@ -220,8 +230,3 @@ svm_pred2 <- predict()
 
 #             m) Evaluate confusion matrix
 confusionMatrix()
-
-
-
-
-## sometimes we need sensitivity more and sometimes we need model with high specificity, depends on our task 
