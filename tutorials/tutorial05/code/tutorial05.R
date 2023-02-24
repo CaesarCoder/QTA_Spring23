@@ -255,3 +255,5 @@ plot(kResult)
 # large should we set our k? 
 
 
+toks <- tokens_remove(toks, c("said",
+                              "say"))  # which is most frequent in word cloud, but not useful
