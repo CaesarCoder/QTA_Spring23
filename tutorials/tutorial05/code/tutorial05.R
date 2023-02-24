@@ -29,19 +29,27 @@ lapply(c("tidyverse",
 #     a) In the data folder you'll find a large data.frame object called 
 #        ukr_h1_2022. Read it in, and check the type of articles it contains.
 dat <- readRDS("data/ukr_h1_2022")
-dat <- dat[dat$section_name %in% c("World news", "Opinion") 
-           & dat$type == "article",]
-dat <- dat %>%
-  select(headline,
-         byline,
-         date = web_publication_date, # Rename date variable
-         section_name,
-         standfirst,
-         body_text
-  ) %>%
-  mutate(date = as_datetime(date)) # parse date
-dat <- dat[-which(duplicated(dat$headline)),]
-dat$section_name <- ifelse(dat$section_name == "World news", "World", dat$section_name)
+dat$body_text <- str_replace(dat$body_text, "\u2022.+$", "")
+
+corp <- corpus(dat, 
+               docid_field = "headline",
+               text_field = "body_text")
+
+source("code/pre_processing.R")
+prepped_toks <- prep_toks(corp) # basic token cleaning
+collocations <- get_coll(prepped_toks) # get collocations
+toks <- tokens_compound(prepped_toks, pattern = collocations[collocations$z > 10,]) # replace collocations
+toks <- tokens_remove(tokens(toks), "") # let's also remove the whitespace placeholders
+
+toks <- tokens(toks, 
+               remove_numbers = TRUE,
+               remove_punct = TRUE,
+               remove_symbols = TRUE,
+               remove_separators = TRUE,
+               remove_url = TRUE) # remove other uninformative text
+
+dfm <- dfm(toks)
+dfm <- dfm_trim(dfm, min_docfreq = 20)
 
 #     b) Pre-process the data.frame.
 
@@ -59,19 +67,23 @@ K <- 8
 modelFit <- stm(documents = stmdfm$documents,
                 vocab = stmdfm$vocab,
                 K = K,
-                prevalence = ~ section_name + s(month(date)),
+                prevalence = ~ section_name + s(month(date)), # documents grouped by sections, tell the computer, base on the section name, the probability of topics pop up
                 #prevalence = ~ source + s(as.numeric(date_month)), 
                 data = stmdfm$meta,
-                max.em.its = 500,
-                init.type = "Spectral",
+                max.em.its = 500,   # how many interation we want to go through
+                init.type = "Spectral",  
                 seed = 2023,
-                verbose = TRUE)
+                verbose = TRUE)  # let you know what to stop it 
+
+# stm, the probablity of a given word in a given document can vary across the months 
+# in the homework,   ```{r eval=FALSE}.
+# just include the code but not evaluate in the homework
 
 # Save your model!
 saveRDS(modelFit, "data/modelFit")
 
 # Load model (in case your computer is running slow...)
-#modelFit <- readRDS("data/modelFit")
+modelFit <- readRDS("data/modelFit")
 
 ## 3. Interpret Topic model 
 # Inspect most probable terms in each topic
@@ -112,6 +124,10 @@ agg_theta <- setNames(aggregate(modelFit$theta,
                                 by = list(month = stmdfm$meta$num_month),
                                 FUN = mean),
                       c("month", paste("Topic",1:K)))
+print(agg_theta)
+# we need to pivot it longer because we want columns for topic prevalence, topic 
+# easy to plot 
+
 agg_theta <- pivot_longer(agg_theta, cols = starts_with("T"))
 
 #     c) Plot aggregated theta over time
@@ -130,6 +146,8 @@ plot.topicCorr(topic_correlations,
                vertex.color = "white",
                main = "Topic correlations")
 
+## all the topics are independent from each other, that's why we did not get lines between them
+
 ## 6. Topic quality (semantic coherence and exclusivity)
 topicQuality(model = modelFit,
              documents = stmdfm$documents,
@@ -137,6 +155,8 @@ topicQuality(model = modelFit,
              ylab = "Exclusivity",
              labels = 1:ncol(modelFit$theta),
              M = 15)
+
+# the right top is better, more coherent  
 
 # An alternative approach, using underlying functions
 SemEx <- as.data.frame(cbind(c(1:ncol(modelFit$theta)), 
@@ -201,6 +221,9 @@ plot.estimateEffect(x = estprop,
                     labeltype = "custom",
                     custom.labels = custom_labels)
 
+# topic 5 and topic 1 is less likely to appear in world news compared to opinion, 
+# World News is the refernce category   
+
 #     c) Plot topic probability over time (similar to above plot in 4.)
 plot.estimateEffect(x = estprop,
                     #model = modelFit,
@@ -220,7 +243,7 @@ kResult <- searchK(documents = stmdfm$documents,
                    init.type = "Spectral",
                    data = stmdfm$meta,
                    prevalence = ~ section_name + s(month(date)))
-                   #cores = 6) # This no longer works on windows 10 :(
+                   # cores = 6) # This no longer works on windows 10 :(
 
 #kResult <- readRDS("data/kResult")                   
 plot(kResult)
@@ -230,3 +253,5 @@ plot(kResult)
 # it for yourselves: can we further trim the tokens? Are there any cases
 # we should drop from our corpus? (For instance, the daily digest) How
 # large should we set our k? 
+
+
