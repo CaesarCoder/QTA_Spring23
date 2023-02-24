@@ -28,7 +28,20 @@ lapply(c("tidyverse",
 ## 1. Read in and wrangle data
 #     a) In the data folder you'll find a large data.frame object called 
 #        ukr_h1_2022. Read it in, and check the type of articles it contains.
-dat <- 
+dat <- readRDS("data/ukr_h1_2022")
+dat <- dat[dat$section_name %in% c("World news", "Opinion") 
+           & dat$type == "article",]
+dat <- dat %>%
+  select(headline,
+         byline,
+         date = web_publication_date, # Rename date variable
+         section_name,
+         standfirst,
+         body_text
+  ) %>%
+  mutate(date = as_datetime(date)) # parse date
+dat <- dat[-which(duplicated(dat$headline)),]
+dat$section_name <- ifelse(dat$section_name == "World news", "World", dat$section_name)
 
 #     b) Pre-process the data.frame.
 
